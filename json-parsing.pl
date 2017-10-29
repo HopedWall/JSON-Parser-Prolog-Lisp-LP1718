@@ -12,4 +12,4 @@ json_write(JSON, FileName).
 
 
 
-%%%%  end of file -- json-parsing.pl prova
+%%%%  end of file -- json-parsing.pl
