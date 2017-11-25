@@ -2,30 +2,6 @@
 
 %%%%  json-parsing.pl
 
-
-json([X | Xs]) --> json_array([X | Xs]), !.
-json(Val) --> json_object(Val).
-
-json_object([]) --> "{", "}", !.
-json_object([X | Xs]) -->  "{", json_member([X | Xs]), "}".
-
-json_member([]) --> [], !.
-json_member([X | Xs]) --> json_pair(X), json_member(Xs).
-
-json_pair(X,Y) --> {atom_codes(X,Val)}, atomic(Val), ":", json_pair(Y).
-
-json_array([]) --> [], !.
-json_array([X | Xs]) --> json_elements([X | Xs]).
-
-json_elements([X | Xs]) --> json_value(X), json_elements(Xs).
-
-json_value(Val) --> json(Val).
-json_value(Val) --> {atom_codes(X,Val), term_string(Y,X)}, integer(Y).
-json_value(Val) --> {atom_codes(X,Val)}, string(X).
-
-s --> "" ; (" ";"\t";"\n";"\r"), s.
-
-
 %%%% json_parse(JSONString, Object)
 %json_parse(JSONString, Object) :-
 %   atom_codes(JSONString, Codes),
@@ -33,7 +9,8 @@ s --> "" ; (" ";"\t";"\n";"\r"), s.
 %    Object = X.
 
 json_parse(JSONString, Object) :-
-    %json_array(JSONString, Object),
+    json_array(JSONString, Object).
+json_parse(JSONString, Object) :-
     json_obj(JSONString, Object).
 
 json_obj(JSONString, json_obj(Object)) :-
@@ -41,8 +18,19 @@ json_obj(JSONString, json_obj(Object)) :-
     {Y} = X,
     json_member(Y, Object).
 
+json_array(JSONString, json_array(Object)) :-
+    term_string(X, JSONString),
+    [Y | Ys] = X,
+    json_values([Y | Ys], Object).
+
+json_values([], []) :- !.
+json_values([X | Xs],[X | Ys]) :-
+    checkJNS(X),
+    json_values(Xs, Ys).
+
 json_member(JSONString, Object) :-
     term_to_atom(JSONString, X),
+    %devo mettere in una lista tutte le copie A:B
     split_string(X,",","", L),
     json_pair(L, Object).
 
@@ -57,7 +45,7 @@ json_pair([X | Xs], [(A,B)|Ys] ) :-
 checkString(Val) :- string(Val).
 checkJNS(Val) :- number(Val).
 checkJNS(Val) :- string(Val).
-checkJNS(Val) :- json_parse(Val,_).
+%checkJNS(Val) :- json_parse(Val,_).
 
 
 
@@ -66,16 +54,26 @@ checkJNS(Val) :- json_parse(Val,_).
 json_get(JSON_obj, Fields, Result) :-
     json_obj(Y) = JSON_obj,
     json_get_member(Y, Fields, Result).
+json_get(JSON_obj, Fields , Result) :-
+    json_array([X|Xs]) = JSON_obj,
+    json_get_member_position([X | Xs], Fields, Result).
 
+json_get_member([], _, _) :- fail.
 json_get_member([(X,Y)| _], Z, Result) :-
     X = Z,
     !,
     Result = Y.
-
 json_get_member([_| Xs], Z, Result) :-
     json_get_member(Xs, Z, Result).
 
-json_get_member([], _, _) :- fail.
+json_get_member_position([],[_], _) :- fail.
+json_get_member_position([X | _], [Y], Result) :-
+    Y = 0,
+    !,
+    Result = X.
+json_get_member_position([_ | Xs], [Y], Result) :-
+    Z is Y-1,
+    json_get_member_position(Xs, [Z], Result).
 
 
 
@@ -95,6 +93,10 @@ json_write(JSON, Filename) :-
     close(Out).
 
 %%%%  end of file -- json-parsing.pl
+
+
+
+
 
 
 
