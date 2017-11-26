@@ -2,30 +2,31 @@
 
 %%%%  json-parsing.pl
 
-%%%% json_parse(JSONString, Object)
-%json_parse(JSONString, Object) :-
-%   atom_codes(JSONString, Codes),
-%    phrase(json(X), Codes, _),
-%    Object = X.
-
 json_parse(JSONString, Object) :-
-    json_array(JSONString, Object).
+    json_array(JSONString, Object),
+    !.
 json_parse(JSONString, Object) :-
-    json_obj(JSONString, Object).
-
+    json_obj(JSONString, Object),
+    !.
 json_obj(JSONString, json_obj(Object)) :-
+    starts_with(JSONString, '{'),
+    ends_with(JSONString, '}'),
+    !,
     term_string(X, JSONString),
     {Y} = X,
     json_member(Y, Object).
 
 json_array(JSONString, json_array(Object)) :-
+    starts_with(JSONString,'['),
+    ends_with(JSONString,']'),
+    !,
     term_string(X, JSONString),
     [Y | Ys] = X,
     json_values([Y | Ys], Object).
 
 json_values([], []) :- !.
-json_values([X | Xs],[X | Ys]) :-
-    checkJNS(X),
+json_values([X | Xs],[X1 | Ys]) :-
+    checkJNS(X,X1),
     json_values(Xs, Ys).
 
 json_member(JSONString, Object) :-
@@ -35,17 +36,30 @@ json_member(JSONString, Object) :-
     json_pair(L, Object).
 
 json_pair([], []) :- !.
-json_pair([X | Xs], [(A,B)|Ys] ) :-
+json_pair([X | Xs], [(A1,B1)|Ys] ) :-
     term_string(Z, X),
     A:B = Z,
-    checkString(A),
-    checkJNS(B),
+    checkString(A, A1),
+    checkJNS(B, B1),
     json_pair(Xs, Ys).
 
-checkString(Val) :- string(Val).
-checkJNS(Val) :- number(Val).
-checkJNS(Val) :- string(Val).
-%checkJNS(Val) :- json_parse(Val,_).
+checkString(Val, Ris) :- string(Val), !, Ris = Val.
+checkJNS(Val,Ris) :- number(Val), !, Ris = Val.
+checkJNS(Val,Ris) :- string(Val), !, Ris = Val.
+%checkJNS(Val,Ris) :- json_parse(Val,Ris).
+
+starts_with(String, Char) :-
+    string_chars(String, [X|_]),
+    X = Char.
+
+ends_with(String, Char) :-
+    string_chars(String, X),
+    check_ends_with(X, Char).
+check_ends_with([X], Char) :-
+    !,
+    X = Char.
+check_ends_with([_|Xs],Char) :-
+    check_ends_with(Xs, Char).
 
 
 
