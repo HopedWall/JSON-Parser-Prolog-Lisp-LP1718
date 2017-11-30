@@ -75,6 +75,35 @@ check_ends_with([_|Xs],Char) :-
     check_ends_with(Xs, Char).
 
 
+skip_newlines_and_whitespaces(String, Result) :-
+    string_codes(String, X),
+    skip_whitespaces(X, X1),
+    skip_newlines(X1, X2),
+    string_codes(Result, X2).
+
+skip_whitespaces([], []) :- !.
+skip_whitespaces([X | Xs], Ys) :-
+    is_whitespace_custom(X),
+    !,
+    skip_whitespaces(Xs, Ys).
+skip_whitespaces([X | Xs], [X | Ys]) :-
+    skip_whitespaces(Xs, Ys).
+
+skip_newlines([], []) :- !.
+skip_newlines([X | Xs], Ys) :-
+    is_newline_custom(X),
+    !,
+    skip_newlines(Xs, Ys).
+skip_newlines([X | Xs], [X | Ys]) :-
+    skip_newlines(Xs, Ys).
+
+is_whitespace_custom(X) :-
+    string_codes(" ", [Y | _]),
+    X = Y.
+is_newline_custom(X) :-
+    string_codes("\n", [Y | _]),
+    X = Y.
+
 
 
 %%%% json_get(JSON_obj, Fields, Result)
@@ -121,15 +150,54 @@ json_load(Filename, JSON) :-
     open(Filename, read, In),
     read_stream_to_codes(In, X),
     close(In),
-    atom_codes(JSON, X).
+    atom_codes(JSONString, X),
+    json_parse(JSONString, JSON).
 
 
 %%%% json_write(JSON, Filename).
 json_write(JSON, Filename) :-
     open(Filename, write, Out),
-    atom_string(JSON, JSONmod),
-    write(Out, JSONmod),
+    %atom_string(JSON, JSONmod),
+    json_print(JSON, JSONString),
+    write(Out, JSONString),
     close(Out).
+
+json_print(JSON, JSONString) :-
+    json_obj(Y) = JSON,
+    !,
+    concat("", "{", JSONString1),
+    json_print_object(Y, JSONString),
+    concat(JSONString1, "}", JSONString).
+json_print(JSON, JSONString) :-
+    json_array(Y) = JSON,
+    !,
+    concat(JSONString, "[", JSONString),
+    json_print_array(Y, JSONString),
+    concat(JSONString, "]", JSONString).
+
+
+json_print_object([], JSONString, Result) :-
+    !,
+    string_concat(Temp, ",", JSONString),
+    Result = Temp.
+json_print_object([(X,Y)| Xs], JSONString, Result) :-
+    string_concat(JSONString, X, JSONString1),
+    string_concat(JSONString1, ":", JSONString2),
+    string_concat(JSONString2, Y, JSONString3),
+    string_concat(JSONString3, ",", JSONString4),
+    json_print_array(Xs, JSONString4, Result).
+
+
+json_print_array([], JSONString, Result) :-
+    !,
+    string_concat(Temp, ",", JSONString),
+    Result = Temp.
+json_print_array([X| Xs], JSONString, Result) :-
+    string_concat(JSONString, X, JSONString1),
+    string_concat(JSONString1, ",", JSONString2),
+    json_print_array(Xs, JSONString2, Result).
+
+
 
 %%%%  end of file -- json-parsing.pl
 
