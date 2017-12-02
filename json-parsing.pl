@@ -9,7 +9,8 @@ json_parse(JSONString, Object) :-
     json_obj(JSONString, Object),
     !.
 
-json_obj(JSONString, json_obj()) :-
+json_obj(JSONString, json_obj([])) :-
+    %usa atom_string per problemi di compatibilità
     starts_with(JSONString, '{'),
     ends_with(JSONString, '}'),
     term_string(X, JSONString),
@@ -23,7 +24,7 @@ json_obj(JSONString, json_obj(Object)) :-
     !,
     json_member(Y, Object).
 
-json_array(JSONString, json_array()) :-
+json_array(JSONString, json_array([])) :-
     starts_with(JSONString, '['),
     ends_with(JSONString, ']'),
     term_string(X, JSONString),
@@ -58,8 +59,8 @@ json_pair([X | Xs], [(A1,B1)|Ys] ) :-
 
 checkString(Val, Ris) :- string(Val), !, Ris = Val.
 checkJNS(Val,Ris) :- number(Val), !, Ris = Val.
-checkJNS(Val,Ris) :- string(Val), !, Ris = Val.
 checkJNS(Val,Ris) :- json_parse(Val,Ris).
+checkJNS(Val,Ris) :- string(Val), !, Ris = Val.
 
 starts_with(String, Char) :-
     string_chars(String, [X|_]),
@@ -108,6 +109,8 @@ is_newline_custom(X) :-
 
 %%%% json_get(JSON_obj, Fields, Result)
 json_get(_, [], _) :- !, fail.
+json_get(json_obj(), _, _) :- !, fail.
+json_get(json_array(), _, _) :- !, fail.
 json_get(JSON_obj, [X], Result) :-
     json_get_elements(JSON_obj, X, Result),
     !.
@@ -162,12 +165,20 @@ json_write(JSON, Filename) :-
     close(Out).
 
 json_print(JSON, JSONString) :-
+    JSON = json_obj([]),
+    !,
+    JSONString = "{}".
+json_print(JSON, JSONString) :-
     json_obj([Y | Ys]) = JSON,
     !,
     concat("", "{", JSONString1),
     json_print_object([Y | Ys], "", JSONString2),
     concat(JSONString1, JSONString2, JSONString3),
     concat(JSONString3, "}", JSONString).
+json_print(JSON, JSONString) :-
+    JSON = json_array([]),
+    !,
+    JSONString = "[]".
 json_print(JSON, JSONString) :-
     json_array([Y | Ys]) = JSON,
     !,
@@ -191,7 +202,7 @@ json_print_object([(X,Y)| Xs], JSONString, Result) :-
     json_print_object(Xs, JSONString6, Result).
 
 
-json_print_array([], JSONString, Result) :-
+ json_print_array([], JSONString, Result) :-
     !,
     string_concat(Temp, ",", JSONString),
     Result = Temp.
@@ -205,6 +216,11 @@ json_print_element(X, Result) :-
     number(X),
     !,
     Result = X.
+
+json_print_element(X, Result) :-
+    json_print(X, Result),
+    !.
+
 json_print_element(X, Result) :-
     string(X),
     !,
@@ -212,8 +228,6 @@ json_print_element(X, Result) :-
     string_concat(JSONString1, X, JSONString2),
     string_concat(JSONString2, "\"", JSONString3),
     Result = JSONString3.
-
-%json_print_element_json(X, Result).
 
 %%%%  end of file -- json-parsing.pl
 
