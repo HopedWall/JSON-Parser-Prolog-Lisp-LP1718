@@ -19,7 +19,7 @@ json_parse(JSONString, Object) :-
     skip_newlines_and_whitespaces(JSONChars, JSONChars1),
     json_object(JSONChars1, JSONChars2, [], Object),
     skip_newlines_and_whitespaces(JSONChars2, JSONChars3),
-    JSONChars3 = [],   %Just to make sure there's nothing nasty at the end...
+    is_empty(JSONChars3),   %Just to make sure there's nothing nasty at the end...
     !.
 % If JSONString is an array...
 json_parse(JSONString, Object) :-
@@ -27,7 +27,7 @@ json_parse(JSONString, Object) :-
     skip_newlines_and_whitespaces(JSONChars, JSONChars1),
     json_array(JSONChars1, JSONChars2, [], Object),
     skip_newlines_and_whitespaces(JSONChars2, JSONChars3),
-    JSONChars3 = [],   %Just to make sure there's nothing nasty at the end...
+    is_empty(JSONChars3),   %Just to make sure there's nothing nasty at the end...
     !.
 
 %%%%  json_object(JSONSChars, JSONChars2, ObjectIn,json_obj(OutObject))
@@ -124,21 +124,55 @@ json_value(JSONCharsIn, JSONCharsOut, Object) :-
 json_value(JSONCharsIn, JSONCharsOut, Object) :-
     json_number(JSONCharsIn, JSONCharsOut, Object),
     !.
+
 %%%% json_number(JSONCharsIn, JSONCharsOut, Object)
+%If number is negative...
+json_number(JSONCharsIn, JSONCharsOut, Object) :-
+    first_char("-", JSONCharsIn, JSONChars2),
+    char_code('-', Minus),
+    number_creation(JSONChars2, JSONChars3, Value1),
+    is_not_empty(Value1),
+    append([Minus], Value1, Value1Minus),
+    first_char(".", JSONChars3, JSONChars4),
+    !,
+    char_code('.', Dot),
+    append(Value1Minus, [Dot], Value2),
+    number_creation(JSONChars4, JSONCharsOut, Value3),
+    is_not_empty(Value3),
+    append(Value2, Value3, Value),
+    number_codes(Object, Value).
+
+
+json_number(JSONCharsIn, JSONCharsOut, Object) :-
+    first_char("-", JSONCharsIn, JSONChars2),
+    char_code('-', Minus),
+    number_creation(JSONChars2, JSONCharsOut, Value2),
+    is_not_empty(Value2),
+    !,
+    append([Minus], Value2, Value),
+    number_codes(Object, Value).
+
 % If number is float...
-% Devo controllare se è un numero!!!!!
 json_number(JSONCharsIn, JSONCharsOut, Object) :-
     number_creation(JSONCharsIn, JSONChars1, Value1),
-    first_char('.', JSONChars1, JSONChars2),
+    first_char(".", JSONChars1, JSONChars2),
     char_code('.', Dot),
     append(Value1, [Dot], Value1Dot),
     !,
     number_creation(JSONChars2, JSONCharsOut, Value2),
     append(Value1Dot, Value2, Value),
+    is_not_empty(Value),
     number_codes(Object, Value).
 json_number(JSONCharsIn, JSONCharsOut, Object) :-
     number_creation(JSONCharsIn, JSONCharsOut, Value),
+    is_not_empty(Value),
     number_codes(Object, Value).
+
+%%%% is_not_empty(List)
+is_not_empty(List) :- List \= [], !.
+
+%%%% is_empty(List)
+is_empty(List) :- List = [], !.
 
 %%%% json_nested(JSONCharsIn, JSONCharsOut, Object)
 json_nested(JSONCharsIn, JSONCharsOut, Object) :-
