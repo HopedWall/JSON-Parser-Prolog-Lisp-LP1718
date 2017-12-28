@@ -20,23 +20,25 @@
 
 ;;; json-parse-array (json)
 (defun json-parse-array (json)
+(let ((njson (funcall 'remove-newlines-whitespaces json)))
   (cond
    ((and 
-     (equal (car json) '#\])
-     (null (remove-newlines-whitespaces (car (cdr json))))) '(json-array))
+     (equal (car njson) '#\])
+     (null (remove-newlines-whitespaces (cdr njson)))) '(json-array))
    (T (append
        '(json-array)
-       (car (json-parse-elements json NIL))))))
+       (car (json-parse-elements njson NIL)))))))
 
 ;;; json-parse-object (json)
 (defun json-parse-object (json)
+(let ((njson (funcall 'remove-newlines-whitespaces json)))
   (cond
    ((and 
-     (equal (car json) '#\})
-     (null (remove-newlines-whitespaces (car (cdr json))))) '(json-obj))
+     (equal (car njson) '#\})
+     (null (remove-newlines-whitespaces (cdr njson)))) '(json-obj))
    (T (append
        '(json-obj)
-       (car (json-parse-members json NIL))))))
+       (car (json-parse-members njson NIL)))))))
 
 
 ;;;json-parse-elements (json obj)
@@ -53,7 +55,7 @@
 (defun json-parse-pair (json)
   (let((njson (remove-newlines-whitespaces json)))
     (if (equal (car njson) '#\")
-        (let ((result (json-parse-string (remove-newlines-whitespaces (cdr njson)) NIL)))
+        (let ((result (json-parse-string (cdr njson) NIL)))
           (json-delimiter-comma result))
       (error "syntax-error-pair"))))
 
@@ -74,8 +76,9 @@
 (defun json-parse-value (json)
   (let ((njson (funcall 'remove-newlines-whitespaces json)))
     (cond
-     ((equal (car njson) '#\") (json-parse-string (remove-newlines-whitespaces (cdr njson)) NIL))
+     ((equal (car njson) '#\") (json-parse-string (cdr njson) NIL))
      ((and (char<= '#\0 (car njson)) (char>= '#\9 (car njson))) (json-parse-number njson NIL))
+     ((char= '#\- (car njson)) (json-parse-number (cdr njson) '(#\-)))
      ((or (equal (car njson) '#\{) (equal (car njson) '#\[)) (json-parse-nested njson))
      (T (error "syntax-error")))))
 
@@ -105,7 +108,7 @@
 
 ;;;json-parse-string (json temp)
 (defun json-parse-string (json temp)
-  (cond
+(cond
    ((null json) (error "quotes-not-closed"))
    ((not (equal (car json) '#\"))
     (funcall 'json-parse-string (cdr json) (append temp (list (car json)))))
@@ -125,17 +128,19 @@
 
 ;;;json-parse-array-nested (json)
 (defun json-parse-array-nested (json)
+  (let ((njson (funcall 'remove-newlines-whitespaces  json)))
    (cond
-   ((equal (car json) '#\]) (append (list '(json-array)) (list (cdr json))))
-   (T (let ((result (json-parse-elements json NIL)))
-        (append (list (append '(json-array) (car result))) (list (car (cdr result))))))))
+   ((equal (car njson) '#\]) (append (list '(json-array)) (list (cdr njson))))
+   (T (let ((result (json-parse-elements njson NIL)))
+        (append (list (append '(json-array) (car result))) (list (car (cdr result)))))))))
 
 ;;;json-parse-object-nested (json)
 (defun json-parse-object-nested (json)
+  (let ((njson (funcall 'remove-newlines-whitespaces json)))
    (cond
-   ((equal (car json) '#\}) (append (list '(json-obj)) (list (cdr json))))
-   (T (let ((result (json-parse-members json NIL))) 
-        (append (list (append '(json-obj) (car result))) (list (car (cdr result))))))))
+   ((equal (car njson) '#\}) (append (list '(json-obj)) (list (cdr njson))))
+   (T (let ((result (json-parse-members njson NIL))) 
+        (append (list (append '(json-obj) (car result))) (list (car (cdr result)))))))))
 
 ;;;json-delimiter-array (json obj)
 (defun json-delimiter-array (json obj)
