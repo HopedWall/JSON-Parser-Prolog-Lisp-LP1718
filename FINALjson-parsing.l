@@ -25,9 +25,11 @@
    ((and 
      (equal (car njson) '#\])
      (null (remove-newlines-whitespaces (cdr njson)))) '(json-array))
-   (T (append
-       '(json-array)
-       (car (json-parse-elements njson NIL)))))))
+   (T (let ((result (json-parse-elements njson NIL)))
+        (if (null (remove-newlines-whitespaces (car (cdr result))))
+            (append '(json-array) (car result))
+          (error "syntax-error-not-empty")))))))
+       
 
 ;;; json-parse-object (json)
 (defun json-parse-object (json)
@@ -36,9 +38,10 @@
    ((and 
      (equal (car njson) '#\})
      (null (remove-newlines-whitespaces (cdr njson)))) '(json-obj))
-   (T (append
-       '(json-obj)
-       (car (json-parse-members njson NIL)))))))
+   (T (let ((result (json-parse-members njson NIL)))
+        (if (null (remove-newlines-whitespaces (car (cdr result))))
+            (append '(json-obj) (car result))
+          (error "syntax-error-not-empty")))))))
 
 
 ;;;json-parse-elements (json obj)
@@ -54,8 +57,8 @@
 ;;;json-parse-pair (json obj)
 (defun json-parse-pair (json)
   (let((njson (remove-newlines-whitespaces json)))
-    (if (equal (car njson) '#\")
-        (let ((result (json-parse-string (cdr njson) NIL)))
+    (if (or (equal (car njson) '#\") (equal (car njson) '#\'))
+        (let ((result (json-parse-string njson)))
           (json-delimiter-comma result))
       (error "syntax-error-pair"))))
 
@@ -76,10 +79,14 @@
 (defun json-parse-value (json)
   (let ((njson (funcall 'remove-newlines-whitespaces json)))
     (cond
-     ((equal (car njson) '#\") (json-parse-string (cdr njson) NIL))
-     ((and (char<= '#\0 (car njson)) (char>= '#\9 (car njson))) (json-parse-number njson NIL))
-     ((char= '#\- (car njson)) (json-parse-number (cdr njson) '(#\-)))
-     ((or (equal (car njson) '#\{) (equal (car njson) '#\[)) (json-parse-nested njson))
+     ((or (equal (car njson) '#\") (equal (car njson) '#\')) 
+      (json-parse-string njson))
+     ((and (char<= '#\0 (car njson)) (char>= '#\9 (car njson))) 
+      (json-parse-number njson NIL))
+     ((char= '#\- (car njson)) 
+      (json-parse-number (cdr njson) '(#\-)))
+     ((or (equal (car njson) '#\{) (equal (car njson) '#\[)) 
+      (json-parse-nested njson))
      (T (error "syntax-error")))))
 
 ;;;json-parse-number (json temp)
@@ -106,12 +113,31 @@
        (remove-newlines-whitespaces (list json))))
 ))
 
-;;;json-parse-string (json temp)
-(defun json-parse-string (json temp)
-(cond
+;;;json-parse-string (json)
+(defun json-parse-string (json)
+  (cond 
+   ((char= '#\' (car json)) (json-parse-string-sq (cdr json) NIL))
+   ((char= '#\" (car json)) (json-parse-string-dq (cdr json) NIL))))
+
+;;;json-parse-string-sq (json temp)
+(defun json-parse-string-sq (json temp)
+  (cond
    ((null json) (error "quotes-not-closed"))
+   ((equal (car json) '#\") (error "dq-inside-sq"))
+   ((not (equal (car json) '#\'))
+    (funcall 'json-parse-string-sq (cdr json) (append temp (list (car json)))))
+   (T (append 
+        (list (coerce temp 'string))
+        (remove-newlines-whitespaces (list (cdr json)))))
+))
+
+;;;json-parse-string-dq (json temp)
+(defun json-parse-string-dq (json temp)
+  (cond
+   ((null json) (error "quotes-not-closed"))
+   ((equal (car json) '#\') (error "sq-inside-dq"))
    ((not (equal (car json) '#\"))
-    (funcall 'json-parse-string (cdr json) (append temp (list (car json)))))
+    (funcall 'json-parse-string-dq (cdr json) (append temp (list (car json)))))
    (T (append 
         (list (coerce temp 'string))
         (remove-newlines-whitespaces (list (cdr json)))))
@@ -229,7 +255,7 @@
    (T (funcall 'json-search-by-index (cdr json) (1- index)))
    ))
 
-;;; json_load(filename json).
+;;; json-load(filename)
 ; -Loads a json file and returns its equivalent list-form
 ; -Quite self explanatory...
 (defun json-load (filename)
@@ -240,7 +266,7 @@
       (read-sequence contents stream)
       (funcall 'json-parse contents))))
 
-;;; json_write(json filename).
+;;; json-write(json filename).
 ; -Loads a json file and returns its equivalent list-form
 ; -Quite self explanatory...
 (defun json-write (JSON filename)
@@ -307,3 +333,5 @@
   (cond
     ((string= "" JSON) JSON)
     (T (subseq JSON 0 (- (length JSON) 1)))))
+
+;;; end of file -- json-parsing.l
