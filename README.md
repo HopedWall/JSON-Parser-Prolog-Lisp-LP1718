@@ -1,2 +1,2 @@
 # JSONinProlog-Lisp
-Progetto LP 2017-2018
+Progetto per il corso di Linguaggi di Programmazione a.a. 2017-2018
